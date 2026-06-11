@@ -1,10 +1,10 @@
 package com.shop.online.module.product.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.shop.online.common.exception.BusinessException;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.ResultCode;
 import com.shop.online.module.product.converter.ProductConverter;
 import com.shop.online.module.product.dto.ProductQueryDTO;
@@ -40,27 +40,33 @@ public class ProductServiceImpl implements IProductService {
     private final ProductConverter productConverter;
 
     @Override
-    public IPage<ProductVO> pageProducts(ProductQueryDTO dto) {
-        Page<Product> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
-
-        // 分类筛选
-        wrapper.eq(Objects.nonNull(dto.getCategoryId()), Product::getCategoryId, dto.getCategoryId());
-
-        // 只查上架商品
-        wrapper.eq(Product::getStatus, Objects.requireNonNullElse(dto.getStatus(), 1));
+    public PageResult<ProductVO> pageProducts(ProductQueryDTO dto) {
+        Product query = new Product();
+        query.setCategoryId(dto.getCategoryId());
+        query.setStatus(Objects.requireNonNullElse(dto.getStatus(), 1));
 
         // 排序
         String sortField = StrUtil.isNotBlank(dto.getSortField()) ? dto.getSortField() : "create_time";
-        boolean isAsc = "asc".equalsIgnoreCase(dto.getSortOrder());
+        String sortOrder = "asc".equalsIgnoreCase(dto.getSortOrder()) ? "asc" : "desc";
+        String orderByColumn;
+        switch (sortField) {
+            case "price":
+                orderByColumn = "price";
+                break;
+            case "sales":
+                orderByColumn = "sales";
+                break;
+            default:
+                orderByColumn = "create_time";
+                break;
+        }
+        PageHelper.startPage(dto.getPageNum(), dto.getPageSize());
+        PageHelper.orderBy(orderByColumn + " " + sortOrder);
 
-        wrapper.orderBy(true, isAsc, switch (sortField) {
-            case "price" -> Product::getPrice;
-            case "sales" -> Product::getSales;
-            default -> Product::getCreateTime;
-        });
-
-        return productMapper.selectPage(page, wrapper).convert(productConverter::toVO);
+        List<Product> list = productMapper.selectList(query);
+        PageInfo<Product> pageInfo = new PageInfo<>(list);
+        List<ProductVO> records = list.stream().map(productConverter::toVO).toList();
+        return PageResult.of(pageInfo.getTotal(), dto.getPageNum(), dto.getPageSize(), records);
     }
 
     @Override
@@ -76,17 +82,16 @@ public class ProductServiceImpl implements IProductService {
         ProductDetailVO detailVO = productConverter.toDetailVO(product);
 
         // 查询SKU列表
-        List<ProductSku> skus = skuMapper.selectList(
-                new LambdaQueryWrapper<ProductSku>()
-                        .eq(ProductSku::getProductId, id)
-                        .eq(ProductSku::getStatus, 1));
+        ProductSku skuQuery = new ProductSku();
+        skuQuery.setProductId(id);
+        skuQuery.setStatus(1);
+        List<ProductSku> skus = skuMapper.selectList(skuQuery);
         detailVO.setSkus(productConverter.toSkuVOList(skus));
 
         // 查询图片列表
-        List<ProductImage> images = imageMapper.selectList(
-                new LambdaQueryWrapper<ProductImage>()
-                        .eq(ProductImage::getProductId, id)
-                        .orderByAsc(ProductImage::getSortOrder));
+        ProductImage imageQuery = new ProductImage();
+        imageQuery.setProductId(id);
+        List<ProductImage> images = imageMapper.selectList(imageQuery);
         detailVO.setImages(images.stream()
                 .map(ProductImage::getImageUrl)
                 .collect(Collectors.toList()));
@@ -95,16 +100,18 @@ public class ProductServiceImpl implements IProductService {
     }
 
     @Override
-    public IPage<ProductVO> searchProducts(ProductSearchDTO dto) {
-        Page<Product> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
+    public PageResult<ProductVO> searchProducts(ProductSearchDTO dto) {
+        Product query = new Product();
+        query.setName(dto.getKeyword());
+        query.setStatus(1);
 
-        // 关键词搜索（商品名称 LIKE 查询）
-        wrapper.like(Product::getName, dto.getKeyword())
-                .eq(Product::getStatus, 1)
-                .orderByDesc(Product::getSales);
+        PageHelper.startPage(dto.getPageNum(), dto.getPageSize());
+        PageHelper.orderBy("sales desc");
 
-        return productMapper.selectPage(page, wrapper).convert(productConverter::toVO);
+        List<Product> list = productMapper.selectList(query);
+        PageInfo<Product> pageInfo = new PageInfo<>(list);
+        List<ProductVO> records = list.stream().map(productConverter::toVO).toList();
+        return PageResult.of(pageInfo.getTotal(), dto.getPageNum(), dto.getPageSize(), records);
     }
 
     @Override
@@ -115,11 +122,10 @@ public class ProductServiceImpl implements IProductService {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
         }
 
-        List<ProductReview> reviews = reviewMapper.selectList(
-                new LambdaQueryWrapper<ProductReview>()
-                        .eq(ProductReview::getProductId, productId)
-                        .eq(ProductReview::getIsHidden, 0)
-                        .orderByDesc(ProductReview::getCreateTime));
+        ProductReview query = new ProductReview();
+        query.setProductId(productId);
+        query.setIsHidden(0);
+        List<ProductReview> reviews = reviewMapper.selectList(query);
 
         if (reviews.isEmpty()) {
             return Collections.emptyList();

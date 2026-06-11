@@ -1,6 +1,6 @@
 package com.shop.online.module.admin.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.module.admin.dto.AdminOrderQueryDTO;
 import com.shop.online.module.admin.dto.DeliverDTO;
 import com.shop.online.module.order.vo.OrderDetailVO;
@@ -14,7 +14,7 @@ public interface IAdminOrderService {
     /**
      * 订单列表（多条件查询）
      */
-    IPage<OrderVO> pageOrders(AdminOrderQueryDTO dto);
+    PageResult<OrderVO> pageOrders(AdminOrderQueryDTO dto);
 
     /**
      * 订单详情

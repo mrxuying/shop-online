@@ -144,7 +144,8 @@
 |------|------|------|---------|
 | Spring Boot | 3.2+ | 基础框架 | 生态成熟，自动配置，内嵌 Tomcat |
 | Spring Security | 6.x | 安全框架 | 与 Spring Boot 深度集成 |
-| MyBatis-Plus | 3.5+ | ORM 框架 | 简化 CRUD，Lambda 查询防止字段名拼写错误 |
+| MyBatis | 3.0+ | ORM 框架 | XML 映射，SQL 透明可控 |
+| PageHelper | 2.1+ | 分页插件 | 轻量级分页，无侵入 |
 | Spring Cache + Redis | — | 缓存方案 | 注解式缓存，Redis 高性能 |
 | Redisson | 3.25+ | 分布式锁 | 订单库存扣减等并发场景 |
 | Knife4j | 4.0+ | API 文档 | 自动生成 Swagger 文档 |
@@ -486,7 +487,7 @@ Phase 1 (3天)      Phase 2 (4天)      Phase 3 (5天)     Phase 4 (3天)     Ph
 | 1.4 | 全局异常处理器 | `GlobalExceptionHandler` | 1h |
 | 1.5 | 异常体系定义 | `BusinessException` 等 | 0.5h |
 | 1.6 | 响应码枚举 | `ResultCode` 枚举 | 0.5h |
-| 1.7 | MyBatis-Plus 配置 + 自动填充 | MyBatis 配置类、MetaObjectHandler | 1h |
+| 1.7 | MyBatis 配置 | MyBatis 配置类 + PageHelper 配置 | 1h |
 | 1.8 | Redis 配置 + Redisson 配置 | Redis/Redisson 配置类 | 1h |
 | 1.9 | Spring Security + JWT 集成 | Security 配置、JWT 工具类 | 2h |
 | 1.10 | Knife4j 接口文档配置 | Swagger 配置 | 0.5h |
@@ -708,7 +709,7 @@ Phase 1 (3天)      Phase 2 (4天)      Phase 3 (5天)     Phase 4 (3天)     Ph
 - 统一返回结果 `Result<T>` 包装
 - 统一异常处理体系
 - DTO/VO 分离，参数校验规范
-- MyBatis-Plus Lambda 查询
+- MyBatis XML 映射 + 动态 SQL
 - 构造器注入 (`@RequiredArgsConstructor`)
 - 完整的日志、安全、测试规范
 
@@ -801,11 +802,18 @@ shop-online/
         <artifactId>spring-boot-starter-aop</artifactId>
     </dependency>
 
-    <!-- MyBatis-Plus -->
+    <!-- MyBatis -->
     <dependency>
-        <groupId>com.baomidou</groupId>
-        <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-        <version>3.5.7</version>
+        <groupId>org.mybatis.spring.boot</groupId>
+        <artifactId>mybatis-spring-boot-starter</artifactId>
+        <version>3.0.4</version>
+    </dependency>
+
+    <!-- PageHelper 分页插件 -->
+    <dependency>
+        <groupId>com.github.pagehelper</groupId>
+        <artifactId>pagehelper-spring-boot-starter</artifactId>
+        <version>2.0.0</version>
     </dependency>
 
     <!-- MySQL -->

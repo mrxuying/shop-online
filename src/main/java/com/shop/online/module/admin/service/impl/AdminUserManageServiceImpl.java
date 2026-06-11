@@ -1,10 +1,10 @@
 package com.shop.online.module.admin.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.shop.online.common.exception.BusinessException;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.ResultCode;
 import com.shop.online.module.admin.dto.AdminUserQueryDTO;
 import com.shop.online.module.admin.service.IAdminUserManageService;
@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -31,18 +33,25 @@ public class AdminUserManageServiceImpl implements IAdminUserManageService {
     private final UserConverter userConverter;
 
     @Override
-    public IPage<UserProfileVO> pageUsers(AdminUserQueryDTO dto) {
-        Page<User> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+    public PageResult<UserProfileVO> pageUsers(AdminUserQueryDTO dto) {
+        PageHelper.startPage(dto.getPageNum(), dto.getPageSize());
+        PageHelper.orderBy("create_time desc");
 
-        wrapper.eq(Objects.nonNull(dto.getStatus()), User::getStatus, dto.getStatus())
-                .and(StrUtil.isNotBlank(dto.getKeyword()), w ->
-                        w.like(User::getUsername, dto.getKeyword())
-                                .or()
-                                .like(User::getPhone, dto.getKeyword()))
-                .orderByDesc(User::getCreateTime);
+        List<User> list;
+        if (StrUtil.isNotBlank(dto.getKeyword())) {
+            // 关键词搜索：用户名或手机号模糊匹配
+            list = userMapper.selectByKeyword(dto.getKeyword());
+        } else if (dto.getStatus() != null) {
+            User query = new User();
+            query.setStatus(dto.getStatus());
+            list = userMapper.selectList(query);
+        } else {
+            list = userMapper.selectList(null);
+        }
 
-        return userMapper.selectPage(page, wrapper).convert(userConverter::toProfileVO);
+        PageInfo<User> pageInfo = new PageInfo<>(list);
+        List<UserProfileVO> records = list.stream().map(userConverter::toProfileVO).toList();
+        return PageResult.of(pageInfo.getTotal(), dto.getPageNum(), dto.getPageSize(), records);
     }
 
     @Override
@@ -53,6 +62,7 @@ public class AdminUserManageServiceImpl implements IAdminUserManageService {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
         user.setStatus(status);
+        user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
         log.info("用户状态变更成功, userId={}, status={}", userId, status);
     }

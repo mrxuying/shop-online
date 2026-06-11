@@ -1,6 +1,5 @@
 package com.shop.online.module.admin.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shop.online.common.enums.UserStatusEnum;
 import com.shop.online.common.exception.BusinessException;
 import com.shop.online.common.result.ResultCode;
@@ -32,8 +31,9 @@ public class AdminUserServiceImpl implements IAdminUserService {
 
     @Override
     public AdminLoginVO login(AdminLoginDTO dto) {
-        AdminUser admin = adminUserMapper.selectOne(
-                new LambdaQueryWrapper<AdminUser>().eq(AdminUser::getUsername, dto.getUsername()));
+        AdminUser query = new AdminUser();
+        query.setUsername(dto.getUsername());
+        AdminUser admin = adminUserMapper.selectOne(query);
 
         if (admin == null) {
             throw new BusinessException(ResultCode.ADMIN_NOT_FOUND);
@@ -49,6 +49,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
 
         // 更新最后登录时间
         admin.setLastLoginTime(LocalDateTime.now());
+        admin.setUpdateTime(LocalDateTime.now());
         adminUserMapper.updateById(admin);
 
         // 生成管理员 Token

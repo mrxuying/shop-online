@@ -2,12 +2,12 @@ package com.shop.online.module.order.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.shop.online.common.constant.AppConstants;
 import com.shop.online.common.enums.OrderStatusEnum;
 import com.shop.online.common.exception.BusinessException;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.ResultCode;
 import com.shop.online.common.utils.OrderNoGenerator;
 import com.shop.online.module.cart.service.ICartService;
@@ -120,6 +120,7 @@ public class OrderServiceImpl implements IOrderService {
         // 生成订单
         String orderNo = orderNoGenerator.generateOrderNo();
         BigDecimal totalAmount = cart.getTotalAmount();
+        LocalDateTime now = LocalDateTime.now();
 
         Order order = new Order();
         order.setOrderNo(orderNo);
@@ -134,6 +135,8 @@ public class OrderServiceImpl implements IOrderService {
         order.setReceiverAddress(
                 address.getProvince() + address.getCity() + address.getDistrict() + address.getDetailAddress());
         order.setRemark(dto.getRemark());
+        order.setCreateTime(now);
+        order.setUpdateTime(now);
 
         orderMapper.insert(order);
 
@@ -151,9 +154,10 @@ public class OrderServiceImpl implements IOrderService {
             orderItem.setPrice(item.getPrice());
             orderItem.setQuantity(item.getQuantity());
             orderItem.setTotalAmount(item.getSubTotal());
+            orderItem.setCreateTime(now);
             orderItems.add(orderItem);
         }
-        orderItemMapper.insert(orderItems);
+        orderItemMapper.insertBatch(orderItems);
 
         // 清除购物车已选商品
         cartService.clearSelected(userId);
@@ -168,14 +172,20 @@ public class OrderServiceImpl implements IOrderService {
     }
 
     @Override
-    public IPage<OrderVO> pageOrders(Long userId, OrderQueryDTO dto) {
-        Page<Order> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<Order>()
-                .eq(Order::getUserId, userId)
-                .eq(Objects.nonNull(dto.getStatus()), Order::getStatus, dto.getStatus())
-                .orderByDesc(Order::getCreateTime);
+    public PageResult<OrderVO> pageOrders(Long userId, OrderQueryDTO dto) {
+        Order query = new Order();
+        query.setUserId(userId);
+        if (dto.getStatus() != null) {
+            query.setStatus(dto.getStatus());
+        }
 
-        return orderMapper.selectPage(page, wrapper).convert(this::toOrderVO);
+        PageHelper.startPage(dto.getPageNum(), dto.getPageSize());
+        PageHelper.orderBy("create_time desc");
+
+        List<Order> list = orderMapper.selectList(query);
+        PageInfo<Order> pageInfo = new PageInfo<>(list);
+        List<OrderVO> records = list.stream().map(this::toOrderVO).toList();
+        return PageResult.of(pageInfo.getTotal(), dto.getPageNum(), dto.getPageSize(), records);
     }
 
     @Override
@@ -188,8 +198,9 @@ public class OrderServiceImpl implements IOrderService {
         OrderDetailVO detailVO = toOrderDetailVO(order);
 
         // 查询订单商品项
-        List<OrderItem> items = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId));
+        OrderItem itemQuery = new OrderItem();
+        itemQuery.setOrderId(orderId);
+        List<OrderItem> items = orderItemMapper.selectList(itemQuery);
         detailVO.setItems(items.stream().map(this::toOrderItemVO).toList());
 
         return detailVO;
@@ -213,6 +224,7 @@ public class OrderServiceImpl implements IOrderService {
         // 更新订单状态
         order.setStatus(OrderStatusEnum.CANCELLED.getCode());
         order.setCancelTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
 
         // 清除超时标记
@@ -236,6 +248,7 @@ public class OrderServiceImpl implements IOrderService {
 
         order.setStatus(OrderStatusEnum.COMPLETED.getCode());
         order.setReceiveTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
 
         log.info("订单确认收货成功, orderNo={}, userId={}", order.getOrderNo(), userId);
@@ -245,8 +258,9 @@ public class OrderServiceImpl implements IOrderService {
      * 释放订单库存
      */
     private void releaseStock(Long orderId) {
-        List<OrderItem> items = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId));
+        OrderItem itemQuery = new OrderItem();
+        itemQuery.setOrderId(orderId);
+        List<OrderItem> items = orderItemMapper.selectList(itemQuery);
         for (OrderItem item : items) {
             skuMapper.releaseStock(item.getSkuId(), item.getQuantity());
         }

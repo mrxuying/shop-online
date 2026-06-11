@@ -1,6 +1,6 @@
 package com.shop.online.module.order.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.module.order.dto.OrderCreateDTO;
 import com.shop.online.module.order.dto.OrderQueryDTO;
 import com.shop.online.module.order.vo.OrderDetailVO;
@@ -19,7 +19,7 @@ public interface IOrderService {
     /**
      * 订单列表（按状态筛选）
      */
-    IPage<OrderVO> pageOrders(Long userId, OrderQueryDTO dto);
+    PageResult<OrderVO> pageOrders(Long userId, OrderQueryDTO dto);
 
     /**
      * 订单详情

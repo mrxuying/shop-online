@@ -1,6 +1,6 @@
 package com.shop.online.module.product.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.module.product.dto.ProductQueryDTO;
 import com.shop.online.module.product.dto.ProductSearchDTO;
 import com.shop.online.module.product.vo.ProductDetailVO;
@@ -17,7 +17,7 @@ public interface IProductService {
     /**
      * 商品分页列表
      */
-    IPage<ProductVO> pageProducts(ProductQueryDTO dto);
+    PageResult<ProductVO> pageProducts(ProductQueryDTO dto);
 
     /**
      * 商品详情（含SKU+图片）
@@ -27,7 +27,7 @@ public interface IProductService {
     /**
      * 商品搜索
      */
-    IPage<ProductVO> searchProducts(ProductSearchDTO dto);
+    PageResult<ProductVO> searchProducts(ProductSearchDTO dto);
 
     /**
      * 商品评价列表

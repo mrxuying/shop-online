@@ -1,6 +1,5 @@
 package com.shop.online.module.product.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.Result;
 import com.shop.online.module.product.dto.ProductQueryDTO;
@@ -31,17 +30,13 @@ public class ProductController {
     @GetMapping
     @Operation(summary = "商品列表（分页+筛选+排序）")
     public Result<PageResult<ProductVO>> listProducts(@Valid ProductQueryDTO dto) {
-        IPage<ProductVO> page = productService.pageProducts(dto);
-        return Result.success(PageResult.of(page.getTotal(),
-                (int) page.getCurrent(), (int) page.getSize(), page.getRecords()));
+        return Result.success(productService.pageProducts(dto));
     }
 
     @GetMapping("/search")
     @Operation(summary = "商品搜索")
     public Result<PageResult<ProductVO>> searchProducts(@Valid ProductSearchDTO dto) {
-        IPage<ProductVO> page = productService.searchProducts(dto);
-        return Result.success(PageResult.of(page.getTotal(),
-                (int) page.getCurrent(), (int) page.getSize(), page.getRecords()));
+        return Result.success(productService.searchProducts(dto));
     }
 
     @GetMapping("/{id}")

@@ -1,6 +1,5 @@
 package com.shop.online.infrastructure.mq;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shop.online.common.constant.AppConstants;
 import com.shop.online.common.enums.OrderStatusEnum;
 import com.shop.online.module.order.entity.Order;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 订单超时取消定时任务
@@ -45,10 +43,10 @@ public class OrderTimeoutTask {
 
         // 查询超过30分钟未支付的订单
         LocalDateTime timeout = LocalDateTime.now().minusMinutes(AppConstants.ORDER_TIMEOUT_MINUTES);
-        List<Order> timeoutOrders = orderMapper.selectList(
-                new LambdaQueryWrapper<Order>()
-                        .eq(Order::getStatus, OrderStatusEnum.PENDING_PAYMENT.getCode())
-                        .lt(Order::getCreateTime, timeout));
+        Order query = new Order();
+        query.setStatus(OrderStatusEnum.PENDING_PAYMENT.getCode());
+        List<Order> timeoutOrders = orderMapper.selectListAdvanced(
+                query, null, null, timeout);
 
         if (timeoutOrders.isEmpty()) {
             log.debug("无超时订单");
@@ -59,8 +57,9 @@ public class OrderTimeoutTask {
             log.info("自动取消超时订单, orderNo={}", order.getOrderNo());
 
             // 释放库存
-            List<OrderItem> items = orderItemMapper.selectList(
-                    new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+            OrderItem itemQuery = new OrderItem();
+            itemQuery.setOrderId(order.getId());
+            List<OrderItem> items = orderItemMapper.selectList(itemQuery);
             for (OrderItem item : items) {
                 skuMapper.releaseStock(item.getSkuId(), item.getQuantity());
             }
@@ -68,6 +67,7 @@ public class OrderTimeoutTask {
             // 更新订单状态
             order.setStatus(OrderStatusEnum.CANCELLED.getCode());
             order.setCancelTime(LocalDateTime.now());
+            order.setUpdateTime(LocalDateTime.now());
             orderMapper.updateById(order);
 
             // 清除 Redis 超时标记

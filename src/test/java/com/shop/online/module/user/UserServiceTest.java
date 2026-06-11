@@ -1,6 +1,5 @@
 package com.shop.online.module.user;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shop.online.common.exception.BusinessException;
 import com.shop.online.common.result.ResultCode;
 import com.shop.online.infrastructure.security.JwtUtils;
@@ -108,7 +107,7 @@ class UserServiceTest {
         dto.setPassword("123456");
         dto.setPhone("13900139000");
 
-        when(userMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(userMapper.selectCount(any(User.class))).thenReturn(0L);
         when(passwordEncoder.encode("123456")).thenReturn("encoded_password");
         when(userMapper.insert(any(User.class))).thenReturn(1);
 
@@ -116,7 +115,7 @@ class UserServiceTest {
         assertDoesNotThrow(() -> userService.register(dto));
 
         // Then
-        verify(userMapper, times(2)).selectCount(any(LambdaQueryWrapper.class));
+        verify(userMapper, times(2)).selectCount(any(User.class));
         verify(passwordEncoder).encode("123456");
         verify(userMapper).insert(any(User.class));
     }
@@ -130,7 +129,7 @@ class UserServiceTest {
         dto.setPassword("123456");
         dto.setPhone("13900139000");
 
-        when(userMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
+        when(userMapper.selectCount(any(User.class))).thenReturn(1L);
 
         // When & Then
         BusinessException ex = assertThrows(BusinessException.class, () -> userService.register(dto));
@@ -146,7 +145,7 @@ class UserServiceTest {
         dto.setPassword("123456");
         dto.setPhone("13800138000");
 
-        when(userMapper.selectCount(any(LambdaQueryWrapper.class)))
+        when(userMapper.selectCount(any(User.class)))
                 .thenReturn(0L)
                 .thenReturn(1L);
 
@@ -165,7 +164,7 @@ class UserServiceTest {
         dto.setUsername("testuser");
         dto.setPassword("123456");
 
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testUser);
+        when(userMapper.selectByUsernameOrPhone("testuser")).thenReturn(testUser);
         when(passwordEncoder.matches("123456", testUser.getPassword())).thenReturn(true);
         when(jwtUtils.generateAccessToken(1L, "testuser")).thenReturn("access_token");
         when(jwtUtils.generateRefreshToken(1L, "testuser")).thenReturn("refresh_token");
@@ -179,7 +178,7 @@ class UserServiceTest {
         assertEquals("testuser", result.getUsername());
         assertEquals("access_token", result.getAccessToken());
         assertEquals("refresh_token", result.getRefreshToken());
-        verify(userMapper).selectOne(any(LambdaQueryWrapper.class));
+        verify(userMapper).selectByUsernameOrPhone("testuser");
         verify(passwordEncoder).matches("123456", testUser.getPassword());
         verify(jwtUtils).generateAccessToken(1L, "testuser");
         verify(jwtUtils).generateRefreshToken(1L, "testuser");
@@ -193,7 +192,7 @@ class UserServiceTest {
         dto.setUsername("testuser");
         dto.setPassword("wrong_password");
 
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testUser);
+        when(userMapper.selectByUsernameOrPhone("testuser")).thenReturn(testUser);
         when(passwordEncoder.matches("wrong_password", testUser.getPassword())).thenReturn(false);
 
         // When & Then
@@ -209,7 +208,7 @@ class UserServiceTest {
         dto.setUsername("nonexist");
         dto.setPassword("123456");
 
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(userMapper.selectByUsernameOrPhone("nonexist")).thenReturn(null);
 
         // When & Then
         BusinessException ex = assertThrows(BusinessException.class, () -> userService.login(dto));
@@ -259,7 +258,7 @@ class UserServiceTest {
         addressVO.setId(1L);
         addressVO.setReceiverName("张三");
 
-        when(addressMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(addresses);
+        when(addressMapper.selectList(any(UserAddress.class))).thenReturn(addresses);
         when(userConverter.toAddressVOList(addresses)).thenReturn(Arrays.asList(addressVO));
 
         // When
@@ -269,7 +268,7 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("张三", result.get(0).getReceiverName());
-        verify(addressMapper).selectList(any(LambdaQueryWrapper.class));
+        verify(addressMapper).selectList(any(UserAddress.class));
     }
 
     @Test
@@ -285,7 +284,7 @@ class UserServiceTest {
         dto.setDetailAddress("望京SOHO");
         dto.setIsDefault(0);
 
-        when(addressMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(addressMapper.selectCount(any(UserAddress.class))).thenReturn(0L);
         doAnswer(invocation -> {
             UserAddress address = invocation.getArgument(0);
             address.setId(2L);
@@ -298,7 +297,7 @@ class UserServiceTest {
         // Then
         assertNotNull(addressId);
         assertEquals(2L, addressId);
-        verify(addressMapper).selectCount(any(LambdaQueryWrapper.class));
+        verify(addressMapper).selectCount(any(UserAddress.class));
         verify(addressMapper).insert(any(UserAddress.class));
     }
 

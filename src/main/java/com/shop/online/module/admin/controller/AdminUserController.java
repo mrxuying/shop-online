@@ -1,6 +1,5 @@
 package com.shop.online.module.admin.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.Result;
 import com.shop.online.module.admin.dto.AdminUserQueryDTO;
@@ -28,9 +27,7 @@ public class AdminUserController {
     @GetMapping
     @Operation(summary = "用户列表")
     public Result<PageResult<UserProfileVO>> listUsers(@Valid AdminUserQueryDTO dto) {
-        IPage<UserProfileVO> page = adminUserManageService.pageUsers(dto);
-        return Result.success(PageResult.of(page.getTotal(),
-                (int) page.getCurrent(), (int) page.getSize(), page.getRecords()));
+        return Result.success(adminUserManageService.pageUsers(dto));
     }
 
     @PutMapping("/{id}/status")

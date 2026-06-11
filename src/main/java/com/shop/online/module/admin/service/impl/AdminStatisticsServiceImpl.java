@@ -1,6 +1,5 @@
 package com.shop.online.module.admin.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shop.online.common.enums.OrderStatusEnum;
 import com.shop.online.module.admin.service.IAdminStatisticsService;
 import com.shop.online.module.order.entity.Order;
@@ -40,36 +39,38 @@ public class AdminStatisticsServiceImpl implements IAdminStatisticsService {
         result.put("userCount", userCount);
 
         // 商品总数（上架）
-        Long productCount = productMapper.selectCount(
-                new LambdaQueryWrapper<Product>().eq(Product::getStatus, 1));
+        Product productQuery = new Product();
+        productQuery.setStatus(1);
+        Long productCount = productMapper.selectCount(productQuery);
         result.put("productCount", productCount);
 
         // 今日订单数
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
-        Long todayOrders = orderMapper.selectCount(
-                new LambdaQueryWrapper<Order>().ge(Order::getCreateTime, todayStart));
+        Long todayOrders = orderMapper.selectCountAdvanced(null, null, todayStart, null);
         result.put("todayOrders", todayOrders);
 
         // 今日销售额
-        List<Order> todayPaidOrders = orderMapper.selectList(
-                new LambdaQueryWrapper<Order>()
-                        .ge(Order::getCreateTime, todayStart)
-                        .in(Order::getStatus, OrderStatusEnum.PENDING_DELIVERY.getCode(),
-                                OrderStatusEnum.PENDING_RECEIPT.getCode(),
-                                OrderStatusEnum.COMPLETED.getCode()));
+        List<Integer> paidStatusList = Arrays.asList(
+                OrderStatusEnum.PENDING_DELIVERY.getCode(),
+                OrderStatusEnum.PENDING_RECEIPT.getCode(),
+                OrderStatusEnum.COMPLETED.getCode());
+        List<Order> todayPaidOrders = orderMapper.selectListAdvanced(
+                null, paidStatusList, todayStart, null);
         BigDecimal todaySales = todayPaidOrders.stream()
                 .map(Order::getPayAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         result.put("todaySales", todaySales);
 
         // 待处理订单（待发货）
-        Long pendingDelivery = orderMapper.selectCount(
-                new LambdaQueryWrapper<Order>().eq(Order::getStatus, OrderStatusEnum.PENDING_DELIVERY.getCode()));
+        Order pendingQuery = new Order();
+        pendingQuery.setStatus(OrderStatusEnum.PENDING_DELIVERY.getCode());
+        Long pendingDelivery = orderMapper.selectCount(pendingQuery);
         result.put("pendingDelivery", pendingDelivery);
 
         // 待处理退款
-        Long pendingRefund = orderMapper.selectCount(
-                new LambdaQueryWrapper<Order>().eq(Order::getStatus, OrderStatusEnum.REFUNDING.getCode()));
+        Order refundQuery = new Order();
+        refundQuery.setStatus(OrderStatusEnum.REFUNDING.getCode());
+        Long pendingRefund = orderMapper.selectCount(refundQuery);
         result.put("pendingRefund", pendingRefund);
 
         return result;
@@ -80,18 +81,18 @@ public class AdminStatisticsServiceImpl implements IAdminStatisticsService {
         List<Map<String, Object>> trend = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+        List<Integer> paidStatusList = Arrays.asList(
+                OrderStatusEnum.PENDING_DELIVERY.getCode(),
+                OrderStatusEnum.PENDING_RECEIPT.getCode(),
+                OrderStatusEnum.COMPLETED.getCode());
+
         for (int i = days - 1; i >= 0; i--) {
             LocalDate date = LocalDate.now().minusDays(i);
             LocalDateTime dayStart = date.atStartOfDay();
             LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
 
-            List<Order> dayOrders = orderMapper.selectList(
-                    new LambdaQueryWrapper<Order>()
-                            .ge(Order::getCreateTime, dayStart)
-                            .lt(Order::getCreateTime, dayEnd)
-                            .in(Order::getStatus, OrderStatusEnum.PENDING_DELIVERY.getCode(),
-                                    OrderStatusEnum.PENDING_RECEIPT.getCode(),
-                                    OrderStatusEnum.COMPLETED.getCode()));
+            List<Order> dayOrders = orderMapper.selectListAdvanced(
+                    null, paidStatusList, dayStart, dayEnd);
 
             BigDecimal daySales = dayOrders.stream()
                     .map(Order::getPayAmount)

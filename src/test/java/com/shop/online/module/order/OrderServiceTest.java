@@ -1,14 +1,13 @@
 package com.shop.online.module.order;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shop.online.common.enums.OrderStatusEnum;
 import com.shop.online.common.exception.BusinessException;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.common.utils.OrderNoGenerator;
 import com.shop.online.module.cart.service.ICartService;
 import com.shop.online.module.order.dto.OrderQueryDTO;
 import com.shop.online.module.order.entity.Order;
+import com.shop.online.module.order.entity.OrderItem;
 import com.shop.online.module.order.mapper.OrderItemMapper;
 import com.shop.online.module.order.mapper.OrderMapper;
 import com.shop.online.module.order.service.impl.OrderServiceImpl;
@@ -94,15 +93,11 @@ class OrderServiceTest {
         dto.setPageSize(10);
         dto.setStatus(OrderStatusEnum.PENDING_PAYMENT.getCode());
 
-        Page<Order> page = new Page<>(1, 10);
-        page.setRecords(List.of(testOrder));
-        page.setTotal(1);
-
-        when(orderMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
-                .thenReturn(page);
+        when(orderMapper.selectList(any(Order.class)))
+                .thenReturn(List.of(testOrder));
 
         // When
-        IPage<OrderVO> result = orderService.pageOrders(1L, dto);
+        PageResult<OrderVO> result = orderService.pageOrders(1L, dto);
 
         // Then
         assertNotNull(result);
@@ -115,7 +110,7 @@ class OrderServiceTest {
     void shouldGetOrderDetail() {
         // Given
         when(orderMapper.selectById(1L)).thenReturn(testOrder);
-        when(orderItemMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(orderItemMapper.selectList(any(OrderItem.class)))
                 .thenReturn(Collections.emptyList());
 
         // When
@@ -124,7 +119,7 @@ class OrderServiceTest {
         // Then
         assertNotNull(result);
         assertEquals("2024010100001", result.getOrderNo());
-        verify(orderItemMapper).selectList(any(LambdaQueryWrapper.class));
+        verify(orderItemMapper).selectList(any(OrderItem.class));
     }
 
     @Test
@@ -143,7 +138,7 @@ class OrderServiceTest {
     void shouldCancelOrder() {
         // Given
         when(orderMapper.selectById(1L)).thenReturn(testOrder);
-        when(orderItemMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(orderItemMapper.selectList(any(OrderItem.class)))
                 .thenReturn(Collections.emptyList());
         when(orderMapper.updateById(any(Order.class))).thenReturn(1);
 

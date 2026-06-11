@@ -1,6 +1,5 @@
 package com.shop.online.module.payment.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shop.online.common.enums.OrderStatusEnum;
 import com.shop.online.common.enums.PayStatusEnum;
 import com.shop.online.common.exception.BusinessException;
@@ -38,8 +37,9 @@ public class PayServiceImpl implements IPayService {
     @Transactional
     public PayResultVO pay(Long userId, String orderNo, PayRequestDTO dto) {
         // 查询订单
-        Order order = orderMapper.selectOne(
-                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo));
+        Order orderQuery = new Order();
+        orderQuery.setOrderNo(orderNo);
+        Order order = orderMapper.selectOne(orderQuery);
         if (order == null || !order.getUserId().equals(userId)) {
             throw new BusinessException(ResultCode.PAY_ORDER_NOT_FOUND);
         }
@@ -50,8 +50,9 @@ public class PayServiceImpl implements IPayService {
         }
 
         // 检查是否已有支付记录
-        PaymentRecord existingRecord = paymentRecordMapper.selectOne(
-                new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, orderNo));
+        PaymentRecord recordQuery = new PaymentRecord();
+        recordQuery.setOrderNo(orderNo);
+        PaymentRecord existingRecord = paymentRecordMapper.selectOne(recordQuery);
         if (existingRecord != null && Objects.equals(existingRecord.getStatus(), PayStatusEnum.SUCCESS.getCode())) {
             throw new BusinessException(ResultCode.PAY_FAILED.getCode(), "该订单已支付");
         }
@@ -67,6 +68,7 @@ public class PayServiceImpl implements IPayService {
         record.setPayNo(payNo);
         record.setPayType(dto.getPayType());
         record.setPayAmount(order.getPayAmount());
+        record.setCreateTime(LocalDateTime.now());
 
         if (paySuccess) {
             record.setStatus(PayStatusEnum.SUCCESS.getCode());
@@ -77,6 +79,7 @@ public class PayServiceImpl implements IPayService {
             order.setStatus(OrderStatusEnum.PENDING_DELIVERY.getCode());
             order.setPayType(dto.getPayType());
             order.setPaymentTime(LocalDateTime.now());
+            order.setUpdateTime(LocalDateTime.now());
             orderMapper.updateById(order);
 
             log.info("支付成功, orderNo={}, payNo={}, amount={}", orderNo, payNo, order.getPayAmount());
@@ -99,17 +102,16 @@ public class PayServiceImpl implements IPayService {
     @Override
     public PayResultVO getPayResult(Long userId, String orderNo) {
         // 校验订单归属
-        Order order = orderMapper.selectOne(
-                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo));
+        Order orderQuery = new Order();
+        orderQuery.setOrderNo(orderNo);
+        Order order = orderMapper.selectOne(orderQuery);
         if (order == null || !order.getUserId().equals(userId)) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
 
-        PaymentRecord record = paymentRecordMapper.selectOne(
-                new LambdaQueryWrapper<PaymentRecord>()
-                        .eq(PaymentRecord::getOrderNo, orderNo)
-                        .orderByDesc(PaymentRecord::getCreateTime)
-                        .last("LIMIT 1"));
+        PaymentRecord recordQuery = new PaymentRecord();
+        recordQuery.setOrderNo(orderNo);
+        PaymentRecord record = paymentRecordMapper.selectOne(recordQuery);
 
         if (record == null) {
             throw new BusinessException(ResultCode.PAY_ORDER_NOT_FOUND);
@@ -127,17 +129,18 @@ public class PayServiceImpl implements IPayService {
     @Override
     @Transactional
     public void refund(String orderNo) {
-        Order order = orderMapper.selectOne(
-                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo));
+        Order orderQuery = new Order();
+        orderQuery.setOrderNo(orderNo);
+        Order order = orderMapper.selectOne(orderQuery);
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
 
         // 查询支付记录
-        PaymentRecord payRecord = paymentRecordMapper.selectOne(
-                new LambdaQueryWrapper<PaymentRecord>()
-                        .eq(PaymentRecord::getOrderNo, orderNo)
-                        .eq(PaymentRecord::getStatus, PayStatusEnum.SUCCESS.getCode()));
+        PaymentRecord recordQuery = new PaymentRecord();
+        recordQuery.setOrderNo(orderNo);
+        recordQuery.setStatus(PayStatusEnum.SUCCESS.getCode());
+        PaymentRecord payRecord = paymentRecordMapper.selectOne(recordQuery);
 
         if (payRecord == null) {
             throw new BusinessException(ResultCode.REFUND_FAILED.getCode(), "未找到成功支付记录");
@@ -150,6 +153,7 @@ public class PayServiceImpl implements IPayService {
 
         // 更新订单状态
         order.setStatus(OrderStatusEnum.REFUNDING.getCode());
+        order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
 
         log.info("退款处理完成, orderNo={}, refundAmount={}", orderNo, payRecord.getPayAmount());

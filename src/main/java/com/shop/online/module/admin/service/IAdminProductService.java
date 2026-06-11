@@ -1,6 +1,6 @@
 package com.shop.online.module.admin.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.module.admin.dto.AdminProductQueryDTO;
 import com.shop.online.module.admin.dto.CategorySaveDTO;
 import com.shop.online.module.admin.dto.ProductSaveDTO;
@@ -16,7 +16,7 @@ import java.util.List;
 public interface IAdminProductService {
 
     // 商品管理
-    IPage<ProductVO> pageProducts(AdminProductQueryDTO dto);
+    PageResult<ProductVO> pageProducts(AdminProductQueryDTO dto);
 
     ProductDetailVO getProductDetail(Long id);
 

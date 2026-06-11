@@ -1,11 +1,11 @@
 package com.shop.online.module.admin.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.shop.online.common.enums.OrderStatusEnum;
 import com.shop.online.common.exception.BusinessException;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.ResultCode;
 import com.shop.online.module.admin.dto.AdminOrderQueryDTO;
 import com.shop.online.module.admin.dto.DeliverDTO;
@@ -43,16 +43,25 @@ public class AdminOrderServiceImpl implements IAdminOrderService {
     private final IPayService payService;
 
     @Override
-    public IPage<OrderVO> pageOrders(AdminOrderQueryDTO dto) {
-        Page<Order> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
+    public PageResult<OrderVO> pageOrders(AdminOrderQueryDTO dto) {
+        Order query = new Order();
+        if (dto.getStatus() != null) {
+            query.setStatus(dto.getStatus());
+        }
+        if (StrUtil.isNotBlank(dto.getOrderNo())) {
+            query.setOrderNo(dto.getOrderNo());
+        }
+        if (dto.getUserId() != null) {
+            query.setUserId(dto.getUserId());
+        }
 
-        wrapper.eq(Objects.nonNull(dto.getStatus()), Order::getStatus, dto.getStatus())
-                .eq(StrUtil.isNotBlank(dto.getOrderNo()), Order::getOrderNo, dto.getOrderNo())
-                .eq(Objects.nonNull(dto.getUserId()), Order::getUserId, dto.getUserId())
-                .orderByDesc(Order::getCreateTime);
+        PageHelper.startPage(dto.getPageNum(), dto.getPageSize());
+        PageHelper.orderBy("create_time desc");
 
-        return orderMapper.selectPage(page, wrapper).convert(this::toOrderVO);
+        List<Order> list = orderMapper.selectList(query);
+        PageInfo<Order> pageInfo = new PageInfo<>(list);
+        List<OrderVO> records = list.stream().map(this::toOrderVO).toList();
+        return PageResult.of(pageInfo.getTotal(), dto.getPageNum(), dto.getPageSize(), records);
     }
 
     @Override
@@ -64,8 +73,9 @@ public class AdminOrderServiceImpl implements IAdminOrderService {
 
         OrderDetailVO detailVO = toOrderDetailVO(order);
 
-        List<OrderItem> items = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId));
+        OrderItem itemQuery = new OrderItem();
+        itemQuery.setOrderId(orderId);
+        List<OrderItem> items = orderItemMapper.selectList(itemQuery);
         detailVO.setItems(items.stream().map(this::toOrderItemVO).toList());
 
         return detailVO;
@@ -86,6 +96,7 @@ public class AdminOrderServiceImpl implements IAdminOrderService {
         order.setDeliveryCompany(dto.getDeliveryCompany());
         order.setDeliveryNo(dto.getDeliveryNo());
         order.setDeliveryTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
 
         log.info("订单发货成功, orderNo={}, deliveryCompany={}", order.getOrderNo(), dto.getDeliveryCompany());

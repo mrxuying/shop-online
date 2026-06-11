@@ -11,7 +11,7 @@
 | 基础框架 | Spring Boot | 3.2+ |
 | JDK | Java | 17+ (LTS) |
 | 构建工具 | Maven | 3.9+ |
-| ORM | MyBatis-Plus | 3.5+ |
+| ORM | MyBatis | 3.0+ |
 | 数据库 | MySQL | 8.0+ |
 | 缓存 | Redis (Spring Cache + Redisson) | 7.0+ |
 | 消息队列 | RocketMQ / RabbitMQ | — |
@@ -111,14 +111,11 @@ com.shop.online
 ### 4.1 通用规则
 
 ```java
-// 【正确】使用 Lombok 简化代码
+// 【正确】使用 Lombok 简化代码 — Entity 为纯 POJO
 @Data
-@TableName("user")
 public class User {
-    @TableId(type = IdType.AUTO)
     private Long id;
     private String username;
-    @TableField("create_time")
     private LocalDateTime createTime;
 }
 
@@ -182,51 +179,84 @@ public class UserServiceImpl implements IUserService {
 
 ## 五、数据库访问规范
 
-### 5.1 MyBatis-Plus 规则
+### 5.1 MyBatis 规则
 
 ```java
 // Entity 只与数据库表一一对应，不包含业务逻辑
 @Data
-@TableName("product")
 public class Product {
-    @TableId(type = IdType.AUTO)
     private Long id;
-
-    @TableField("category_id")
     private Long categoryId;
-
     private String name;
     private BigDecimal price;
     private Integer stock;
-
-    @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
-
-    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
-
-    @TableLogic
     private Integer isDeleted;
+}
+
+// Mapper 接口 — 定义数据库操作方法
+@Mapper
+public interface ProductMapper {
+    int insert(Product product);
+    int updateById(Product product);
+    int deleteById(@Param("id") Long id);
+    Product selectById(@Param("id") Long id);
+    List<Product> selectList(@Param("query") Product query);
+    Long selectCount(@Param("query") Product query);
+    Product selectOne(@Param("query") Product query);
 }
 ```
 
-- **必须** 使用 `@TableLogic` 标注逻辑删除字段
+```xml
+<!-- Mapper XML — 复杂查询使用 XML 映射，SQL 关键字大写 -->
+<mapper namespace="com.shop.online.module.product.mapper.ProductMapper">
+    <resultMap id="BaseResultMap" type="com.shop.online.module.product.entity.Product">
+        <id column="id" property="id"/>
+        <result column="category_id" property="categoryId"/>
+        <!-- ... -->
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product (category_id, name, price, ...)
+        VALUES (#{categoryId}, #{name}, #{price}, ...)
+    </insert>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM product
+        <where>
+            is_deleted = 0
+            <if test="query.categoryId != null">AND category_id = #{query.categoryId}</if>
+            <if test="query.name != null and query.name != ''">
+                AND name LIKE CONCAT('%', #{query.name}, '%')
+            </if>
+        </where>
+    </select>
+</mapper>
+```
+
 - **必须** Entity 与表结构严格对应，不包含关联查询结果字段
-- **禁止** 在代码中拼接 SQL 字符串 (除非极复杂查询，需注释说明原因)
-- **推荐** 简单 CRUD 使用 MyBatis-Plus 内置方法
+- **必须** 逻辑删除字段 `is_deleted` 在 XML 的 WHERE 子句中显式过滤
+- **必须** `createTime` 和 `updateTime` 在 Service 层手动设置 (`LocalDateTime.now()`)
+- **推荐** 简单查询通过实体字段传参 + XML 动态 SQL 实现
 - **推荐** 复杂查询写在 Mapper XML 中，SQL 关键字大写
 
 ### 5.2 分页查询
 
 ```java
-// 统一使用 MyBatis-Plus 分页插件
-public IPage<UserVO> pageUsers(UserPageDTO dto) {
-    Page<User> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-    LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-    wrapper.eq(Objects.nonNull(dto.getStatus()), User::getStatus, dto.getStatus())
-           .like(StringUtils.hasText(dto.getKeyword()), User::getUsername, dto.getKeyword())
-           .orderByDesc(User::getCreateTime);
-    return userMapper.selectPage(page, wrapper).convert(userConverter::toVO);
+// 统一使用 PageHelper 分页插件
+public PageResult<UserVO> pageUsers(UserPageDTO dto) {
+    User query = new User();
+    query.setStatus(dto.getStatus());
+    if (StringUtils.hasText(dto.getKeyword())) {
+        query.setUsername(dto.getKeyword());
+    }
+    PageHelper.startPage(dto.getPageNum(), dto.getPageSize());
+    PageHelper.orderBy("create_time desc");
+    List<User> list = userMapper.selectList(query);
+    PageInfo<User> pageInfo = new PageInfo<>(list);
+    List<UserVO> records = list.stream().map(userConverter::toVO).toList();
+    return PageResult.of(pageInfo.getTotal(), dto.getPageNum(), dto.getPageSize(), records);
 }
 ```
 

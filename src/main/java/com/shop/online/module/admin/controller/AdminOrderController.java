@@ -1,6 +1,5 @@
 package com.shop.online.module.admin.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.Result;
 import com.shop.online.module.admin.dto.AdminOrderQueryDTO;
@@ -30,9 +29,7 @@ public class AdminOrderController {
     @GetMapping
     @Operation(summary = "订单列表")
     public Result<PageResult<OrderVO>> listOrders(@Valid AdminOrderQueryDTO dto) {
-        IPage<OrderVO> page = adminOrderService.pageOrders(dto);
-        return Result.success(PageResult.of(page.getTotal(),
-                (int) page.getCurrent(), (int) page.getSize(), page.getRecords()));
+        return Result.success(adminOrderService.pageOrders(dto));
     }
 
     @GetMapping("/{id}")

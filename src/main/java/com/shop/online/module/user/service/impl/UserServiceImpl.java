@@ -1,7 +1,6 @@
 package com.shop.online.module.user.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shop.online.common.constant.AppConstants;
 import com.shop.online.common.enums.UserStatusEnum;
 import com.shop.online.common.exception.BusinessException;
@@ -48,26 +47,32 @@ public class UserServiceImpl implements IUserService {
     @Transactional
     public void register(UserRegisterDTO dto) {
         // 校验用户名唯一性
-        Long count = userMapper.selectCount(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
+        User query = new User();
+        query.setUsername(dto.getUsername());
+        Long count = userMapper.selectCount(query);
         if (count > 0) {
             throw new BusinessException(ResultCode.USERNAME_EXIST);
         }
 
         // 校验手机号唯一性
-        count = userMapper.selectCount(
-                new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
+        query = new User();
+        query.setPhone(dto.getPhone());
+        count = userMapper.selectCount(query);
         if (count > 0) {
             throw new BusinessException(ResultCode.PHONE_EXIST);
         }
 
         // 构建用户实体
+        LocalDateTime now = LocalDateTime.now();
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setPhone(dto.getPhone());
         user.setNickname(dto.getUsername());
         user.setStatus(UserStatusEnum.ENABLED.getCode());
+        user.setCreateTime(now);
+        user.setUpdateTime(now);
+        user.setIsDeleted(0);
 
         userMapper.insert(user);
         log.info("用户注册成功, userId={}, username={}", user.getId(), user.getUsername());
@@ -76,12 +81,7 @@ public class UserServiceImpl implements IUserService {
     @Override
     public UserLoginVO login(UserLoginDTO dto) {
         // 支持用户名或手机号登录
-        User user = userMapper.selectOne(
-                new LambdaQueryWrapper<User>()
-                        .and(w -> w.eq(User::getUsername, dto.getUsername())
-                                .or()
-                                .eq(User::getPhone, dto.getUsername()))
-                        .last("LIMIT 1"));
+        User user = userMapper.selectByUsernameOrPhone(dto.getUsername());
 
         if (user == null) {
             throw new BusinessException(ResultCode.USERNAME_OR_PASSWORD_ERROR);
@@ -99,6 +99,7 @@ public class UserServiceImpl implements IUserService {
 
         // 更新最后登录时间
         user.setLastLoginTime(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
         // 生成 Token
@@ -190,6 +191,7 @@ public class UserServiceImpl implements IUserService {
             user.setAvatar(dto.getAvatar());
         }
 
+        user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
         log.info("用户信息更新成功, userId={}", userId);
     }
@@ -209,6 +211,7 @@ public class UserServiceImpl implements IUserService {
 
         // 更新密码
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
         // 清除 Redis 中的 Refresh Token，强制重新登录
@@ -220,11 +223,9 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public List<UserAddressVO> listAddresses(Long userId) {
-        List<UserAddress> addresses = addressMapper.selectList(
-                new LambdaQueryWrapper<UserAddress>()
-                        .eq(UserAddress::getUserId, userId)
-                        .orderByDesc(UserAddress::getIsDefault)
-                        .orderByDesc(UserAddress::getCreateTime));
+        UserAddress query = new UserAddress();
+        query.setUserId(userId);
+        List<UserAddress> addresses = addressMapper.selectList(query);
         return userConverter.toAddressVOList(addresses);
     }
 
@@ -232,12 +233,14 @@ public class UserServiceImpl implements IUserService {
     @Transactional
     public Long createAddress(Long userId, UserAddressDTO dto) {
         // 检查地址数量上限
-        Long count = addressMapper.selectCount(
-                new LambdaQueryWrapper<UserAddress>().eq(UserAddress::getUserId, userId));
+        UserAddress countQuery = new UserAddress();
+        countQuery.setUserId(userId);
+        Long count = addressMapper.selectCount(countQuery);
         if (count >= AppConstants.MAX_ADDRESS_COUNT) {
             throw new BusinessException(ResultCode.ADDRESS_LIMIT_EXCEEDED);
         }
 
+        LocalDateTime now = LocalDateTime.now();
         UserAddress address = new UserAddress();
         address.setUserId(userId);
         address.setReceiverName(dto.getReceiverName());
@@ -247,6 +250,8 @@ public class UserServiceImpl implements IUserService {
         address.setDistrict(dto.getDistrict());
         address.setDetailAddress(dto.getDetailAddress());
         address.setIsDefault(Objects.equals(dto.getIsDefault(), 1) ? 1 : 0);
+        address.setCreateTime(now);
+        address.setUpdateTime(now);
 
         // 如果设为默认地址，取消其他默认
         if (address.getIsDefault() == 1) {
@@ -273,6 +278,7 @@ public class UserServiceImpl implements IUserService {
         address.setDistrict(dto.getDistrict());
         address.setDetailAddress(dto.getDetailAddress());
         address.setIsDefault(Objects.equals(dto.getIsDefault(), 1) ? 1 : 0);
+        address.setUpdateTime(LocalDateTime.now());
 
         // 如果设为默认地址，取消其他默认
         if (address.getIsDefault() == 1) {
@@ -298,12 +304,13 @@ public class UserServiceImpl implements IUserService {
      * 取消用户的所有默认地址
      */
     private void cancelDefaultAddress(Long userId) {
-        List<UserAddress> defaultAddresses = addressMapper.selectList(
-                new LambdaQueryWrapper<UserAddress>()
-                        .eq(UserAddress::getUserId, userId)
-                        .eq(UserAddress::getIsDefault, 1));
+        UserAddress query = new UserAddress();
+        query.setUserId(userId);
+        query.setIsDefault(1);
+        List<UserAddress> defaultAddresses = addressMapper.selectList(query);
         for (UserAddress addr : defaultAddresses) {
             addr.setIsDefault(0);
+            addr.setUpdateTime(LocalDateTime.now());
             addressMapper.updateById(addr);
         }
     }

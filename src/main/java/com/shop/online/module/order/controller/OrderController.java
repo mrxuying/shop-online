@@ -1,6 +1,5 @@
 package com.shop.online.module.order.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.Result;
 import com.shop.online.infrastructure.security.UserContext;
@@ -38,9 +37,7 @@ public class OrderController {
     @Operation(summary = "订单列表")
     public Result<PageResult<OrderVO>> listOrders(@Valid OrderQueryDTO dto) {
         Long userId = UserContext.getCurrentUserId();
-        IPage<OrderVO> page = orderService.pageOrders(userId, dto);
-        return Result.success(PageResult.of(page.getTotal(),
-                (int) page.getCurrent(), (int) page.getSize(), page.getRecords()));
+        return Result.success(orderService.pageOrders(userId, dto));
     }
 
     @GetMapping("/{id}")

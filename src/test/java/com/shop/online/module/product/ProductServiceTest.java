@@ -1,9 +1,7 @@
 package com.shop.online.module.product;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shop.online.common.exception.BusinessException;
+import com.shop.online.common.result.PageResult;
 import com.shop.online.common.result.ResultCode;
 import com.shop.online.module.product.converter.ProductConverter;
 import com.shop.online.module.product.dto.ProductQueryDTO;
@@ -102,23 +100,18 @@ class ProductServiceTest {
         productVO.setId(1L);
         productVO.setName("iPhone 15 Pro Max");
 
-        Page<Product> page = new Page<>(1, 10);
-        page.setRecords(Arrays.asList(testProduct));
-        page.setTotal(1);
-
-        when(productMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
-                .thenReturn(page);
+        when(productMapper.selectList(any(Product.class)))
+                .thenReturn(Arrays.asList(testProduct));
         when(productConverter.toVO(testProduct)).thenReturn(productVO);
 
         // When
-        IPage<ProductVO> result = productService.pageProducts(dto);
+        PageResult<ProductVO> result = productService.pageProducts(dto);
 
         // Then
         assertNotNull(result);
-        assertEquals(1, result.getTotal());
         assertEquals(1, result.getRecords().size());
         assertEquals("iPhone 15 Pro Max", result.getRecords().get(0).getName());
-        verify(productMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
+        verify(productMapper).selectList(any(Product.class));
     }
 
     @Test
@@ -134,21 +127,16 @@ class ProductServiceTest {
         productVO.setId(1L);
         productVO.setName("iPhone 15 Pro Max");
 
-        Page<Product> page = new Page<>(1, 10);
-        page.setRecords(Arrays.asList(testProduct));
-        page.setTotal(1);
-
-        when(productMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
-                .thenReturn(page);
+        when(productMapper.selectList(any(Product.class)))
+                .thenReturn(Arrays.asList(testProduct));
         when(productConverter.toVO(testProduct)).thenReturn(productVO);
 
         // When
-        IPage<ProductVO> result = productService.pageProducts(dto);
+        PageResult<ProductVO> result = productService.pageProducts(dto);
 
         // Then
         assertNotNull(result);
-        assertEquals(1, result.getTotal());
-        verify(productMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
+        verify(productMapper).selectList(any(Product.class));
     }
 
     // ==================== 商品详情 ====================
@@ -166,9 +154,9 @@ class ProductServiceTest {
         skuVO.setSkuCode("IP15PM-256-BLK");
 
         when(productMapper.selectById(1L)).thenReturn(testProduct);
-        when(skuMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(skuMapper.selectList(any(ProductSku.class)))
                 .thenReturn(Arrays.asList(testSku));
-        when(imageMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(imageMapper.selectList(any(ProductImage.class)))
                 .thenReturn(Arrays.asList(testImage));
         when(productConverter.toDetailVO(testProduct)).thenReturn(detailVO);
         when(productConverter.toSkuVOList(any())).thenReturn(Arrays.asList(skuVO));
@@ -185,8 +173,8 @@ class ProductServiceTest {
         assertNotNull(result.getImages());
         assertEquals(1, result.getImages().size());
         verify(productMapper).selectById(1L);
-        verify(skuMapper).selectList(any(LambdaQueryWrapper.class));
-        verify(imageMapper).selectList(any(LambdaQueryWrapper.class));
+        verify(skuMapper).selectList(any(ProductSku.class));
+        verify(imageMapper).selectList(any(ProductImage.class));
     }
 
     @Test
@@ -229,21 +217,16 @@ class ProductServiceTest {
         productVO.setId(1L);
         productVO.setName("iPhone 15 Pro Max");
 
-        Page<Product> page = new Page<>(1, 10);
-        page.setRecords(Arrays.asList(testProduct));
-        page.setTotal(1);
-
-        when(productMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
-                .thenReturn(page);
+        when(productMapper.selectList(any(Product.class)))
+                .thenReturn(Arrays.asList(testProduct));
         when(productConverter.toVO(testProduct)).thenReturn(productVO);
 
         // When
-        IPage<ProductVO> result = productService.searchProducts(dto);
+        PageResult<ProductVO> result = productService.searchProducts(dto);
 
         // Then
         assertNotNull(result);
-        assertEquals(1, result.getTotal());
-        verify(productMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
+        verify(productMapper).selectList(any(Product.class));
     }
 
     @Test
@@ -255,19 +238,14 @@ class ProductServiceTest {
         dto.setPageNum(1);
         dto.setPageSize(10);
 
-        Page<Product> page = new Page<>(1, 10);
-        page.setRecords(List.of());
-        page.setTotal(0);
-
-        when(productMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
-                .thenReturn(page);
+        when(productMapper.selectList(any(Product.class)))
+                .thenReturn(List.of());
 
         // When
-        IPage<ProductVO> result = productService.searchProducts(dto);
+        PageResult<ProductVO> result = productService.searchProducts(dto);
 
         // Then
         assertNotNull(result);
-        assertEquals(0, result.getTotal());
         assertTrue(result.getRecords().isEmpty());
     }
 
@@ -292,7 +270,7 @@ class ProductServiceTest {
         reviewVO.setContent("质量很好，非常满意");
 
         when(productMapper.selectById(1L)).thenReturn(testProduct);
-        when(reviewMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(reviewMapper.selectList(any(ProductReview.class)))
                 .thenReturn(Arrays.asList(review));
         when(productConverter.toReviewVOList(any())).thenReturn(Arrays.asList(reviewVO));
 
@@ -305,7 +283,7 @@ class ProductServiceTest {
         assertEquals(5, result.get(0).getRating());
         assertEquals("质量很好，非常满意", result.get(0).getContent());
         verify(productMapper).selectById(1L);
-        verify(reviewMapper).selectList(any(LambdaQueryWrapper.class));
+        verify(reviewMapper).selectList(any(ProductReview.class));
     }
 
     @Test

@@ -14,19 +14,20 @@ server:
 logging:
   config: classpath:logback-spring.xml
 
-# MyBatis-Plus 配置
-mybatis-plus:
+# MyBatis 配置
+mybatis:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.shop.online.module.*.entity
-  global-config:
-    db-config:
-      id-type: auto
-      logic-delete-field: isDeleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# PageHelper 分页配置
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+  params: count=countSql
 
 # Knife4j 接口文档配置
 knife4j:
