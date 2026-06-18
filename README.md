@@ -1,6 +1,6 @@
 # Shop-Online 电商网站
 
-B2C 单体电商网站后端服务，基于 Spring Boot 3.2 + MyBatis-Plus + Redis + MySQL 构建。
+B2C 单体电商网站后端服务，基于 Spring Boot 3.2 + MyBatis + Redis + MySQL 构建。
 
 ## 技术栈
 
@@ -8,7 +8,7 @@ B2C 单体电商网站后端服务，基于 Spring Boot 3.2 + MyBatis-Plus + Red
 |------|------|------|
 | 基础框架 | Spring Boot | 3.2+ |
 | 安全框架 | Spring Security + JWT | 6.x |
-| ORM | MyBatis-Plus | 3.5+ |
+| ORM | MyBatis | 3.5+ |
 | 数据库 | MySQL | 8.0+ |
 | 缓存 | Redis + Redisson | 7.0+ |
 | 接口文档 | Knife4j (Swagger) | 4.0+ |
@@ -149,7 +149,6 @@ src/main/java/com/shop/online/
 - **XSS 防护**: 请求参数 HTML 过滤
 - **统一异常处理**: 全局异常拦截 + 统一返回格式
 - **手机号脱敏**: 日志和返回值中自动脱敏
-- **逻辑删除**: MyBatis-Plus @TableLogic 支持
 - **自动填充**: 创建时间/更新时间自动处理
 
 ## 开发规范
